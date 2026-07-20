@@ -1,0 +1,3 @@
+rootProject.name = 'inventario-microservicios'
+include 'pedidos-service'
+include 'inventario-service'
