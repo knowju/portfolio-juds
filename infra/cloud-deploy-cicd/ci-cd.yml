@@ -1,0 +1,71 @@
+# Pipeline CI/CD de referencia: build + test → imagen Docker → push a ECR → deploy a ECS.
+#
+# Para ACTIVARLO, mueve este archivo a la raíz del repo en .github/workflows/
+# y configura los secrets del repo (AWS_ROLE_ARN, ECR_REPOSITORY, etc.).
+# Se deja aquí como artefacto documentado para no ejecutar deploys sin credenciales.
+
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: crud-clientes-api
+  ECS_CLUSTER: portfolio-cluster
+  ECS_SERVICE: crud-clientes-api-svc
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build & test
+        working-directory: java/crud-clientes-api
+        run: ./gradlew build --no-daemon
+
+  deploy:
+    needs: build-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # para OIDC hacia AWS (sin llaves estáticas)
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          docker build -f infra/cloud-deploy-cicd/Dockerfile \
+            -t $REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            -t $REGISTRY/$ECR_REPOSITORY:latest \
+            java/crud-clientes-api
+          docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker push $REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment

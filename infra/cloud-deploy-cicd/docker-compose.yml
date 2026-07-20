@@ -1,0 +1,28 @@
+# Levanta la API en contenedor localmente.
+# Uso (desde la raíz del repo):
+#   docker compose -f infra/cloud-deploy-cicd/docker-compose.yml up --build
+services:
+  api:
+    build:
+      context: ../../java/crud-clientes-api
+      dockerfile: ../../infra/cloud-deploy-cicd/Dockerfile
+    image: crud-clientes-api:local
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/clientes"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  # En producción la BD sería AWS RDS (ver terraform/). Postgres local opcional:
+  # db:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_DB: clientesdb
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: secret
+  #   ports:
+  #     - "5432:5432"
