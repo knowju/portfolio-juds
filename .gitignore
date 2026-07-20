@@ -1,0 +1,33 @@
+# Java / Gradle / Maven
+.gradle/
+build/
+target/
+*.class
+bin/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ / Eclipse / VS Code
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.pytest_cache/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Secretos / credenciales
+*.pem
+*.key
+application-local.properties
+secrets.*
